@@ -4,9 +4,11 @@ Listo para desplegar en Render / PythonAnywhere.
 """
 
 import asyncio
+import http.server
 import logging
 import os
 import random
+import threading
 from typing import List, Tuple, Optional
 
 from telegram import Update, InlineKeyboardMarkup
@@ -246,6 +248,26 @@ async def snake_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ---------------------------------------------------------------------------
 
 def main():
+    # Puerto para el servidor web (Render lo asigna en PORT)
+    port = int(os.environ.get("PORT", 8080))
+
+    # Servidor web mínimo para mantener Render activo
+    class HealthHandler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"ok")
+        def log_message(self, *a):
+            pass  # No llenar logs
+
+    def run_http():
+        server = http.server.HTTPServer(("0.0.0.0", port), HealthHandler)
+        server.serve_forever()
+
+    t = threading.Thread(target=run_http, daemon=True)
+    t.start()
+    logger.info("Servidor web en puerto %d", port)
+
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("snake", cmd_snake))
