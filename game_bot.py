@@ -479,14 +479,21 @@ async def ttt_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         guardar_id(chat_id, q.message.message_id)
         return
 
+    logger.info("TTT callback: data=%s chat=%s", data, chat_id)
     if not data.startswith("ttt_"):
         return
     idx = int(data.split("_")[1])
     if juego.turno != JUGADOR or juego.ganador or juego.empate:
+        logger.info("TTT ignored: turno=%s ganador=%s empate=%s", juego.turno, juego.ganador, juego.empate)
         return
     juego.hacer_movimiento(idx)
     if not juego.ganador and not juego.empate:
-        juego.ia_mover()
+        try:
+            juego.ia_mover()
+        except Exception as e:
+            logger.error("TTT ia_mover error: %s", e)
+            await q.edit_message_text("Error en la IA, intentalo de nuevo con /ttt")
+            return
     texto = juego.mostrar()
     teclado = InlineKeyboardMarkup(juego.botones)
     try:
