@@ -501,7 +501,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Main
 # ---------------------------------------------------------------------------
 
-async def main():
+def main():
     port = int(os.environ.get("PORT", 8080))
     url = os.environ.get("RENDER_EXTERNAL_URL", "https://gamebot-dd6p.onrender.com")
 
@@ -513,8 +513,9 @@ async def main():
     app.add_handler(CallbackQueryHandler(snake_cb, pattern="^snake_"))
     app.add_handler(CallbackQueryHandler(ttt_cb, pattern="^ttt_"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+    logger.info("GameBot iniciado")
 
-    await app.run_webhook(
+    app.run_webhook(
         listen="0.0.0.0",
         port=port,
         url_path="telegram-webhook",
@@ -523,4 +524,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
