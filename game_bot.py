@@ -4,11 +4,12 @@ Listo para desplegar en Render / PythonAnywhere.
 """
 
 import asyncio
+import http
 import json
 import logging
 import os
 import random
-from http import HTTPStatus
+import threading
 from typing import Tuple
 
 import requests
@@ -535,14 +536,65 @@ def main():
     app.add_handler(CallbackQueryHandler(snake_cb, pattern="^snake_"))
     app.add_handler(CallbackQueryHandler(ttt_cb, pattern="^ttt_"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
-    logger.info("GameBot iniciado")
 
-    app.run_webhook(
-        listen="0.0.0.0",
-        port=port,
-        url_path="/telegram-webhook",
-        webhook_url=f"{url}/telegram-webhook",
-    )
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(app.initialize())
+    loop.run_until_complete(app.start())
+
+    class WebhookHandler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path in ("/", "/healthz"):
+                self._json({"status": "ok"})
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+        def do_POST(self):
+            if self.path != "/telegram-webhook":
+                self.send_response(404)
+                self.end_headers()
+                return
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length)
+            try:
+                data = json.loads(body)
+                update = Update.de_json(data, app.bot)
+                asyncio.run_coroutine_threadsafe(
+                    app.process_update(update), loop
+                )
+                self._json({"ok": True})
+            except Exception as e:
+                logger.error("Webhook error: %s", e)
+                self.send_response(200)
+                self.end_headers()
+
+        def _json(self, data):
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(data).encode())
+
+        def log_message(self, *a):
+            pass
+
+    server = http.server.HTTPServer(("0.0.0.0", port), WebhookHandler)
+    t = threading.Thread(target=server.serve_forever, daemon=True)
+    t.start()
+    logger.info("Servidor web en puerto %d", port)
+
+    webhook_url = f"{url}/telegram-webhook"
+    loop.run_until_complete(app.bot.set_webhook(webhook_url))
+    logger.info("Webhook registrado: %s", webhook_url)
+
+    try:
+        loop.run_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.shutdown()
+        loop.run_until_complete(app.stop())
+        loop.run_until_complete(app.shutdown())
 
 
 if __name__ == "__main__":
