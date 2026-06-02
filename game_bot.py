@@ -4,11 +4,11 @@ Listo para desplegar en Render / PythonAnywhere.
 """
 
 import asyncio
-import http.server
+import json
 import logging
 import os
 import random
-import threading
+from http import HTTPStatus
 from typing import Tuple
 
 import requests
@@ -476,22 +476,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     port = int(os.environ.get("PORT", 8080))
-
-    class HealthHandler(http.server.BaseHTTPRequestHandler):
-        def do_GET(self):
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(b"ok")
-        def log_message(self, *a):
-            pass
-
-    def run_http():
-        server = http.server.HTTPServer(("0.0.0.0", port), HealthHandler)
-        server.serve_forever()
-
-    t = threading.Thread(target=run_http, daemon=True)
-    t.start()
-    logger.info("Servidor web en puerto %d", port)
+    url = os.environ.get("RENDER_EXTERNAL_URL", "https://gamebot-dd6p.onrender.com")
 
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", cmd_start))
@@ -502,7 +487,13 @@ def main():
     app.add_handler(CallbackQueryHandler(ttt_cb, pattern="^ttt_"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     logger.info("GameBot iniciado")
-    app.run_polling()
+
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=port,
+        url_path="/telegram-webhook",
+        webhook_url=f"{url}/telegram-webhook",
+    )
 
 
 if __name__ == "__main__":
