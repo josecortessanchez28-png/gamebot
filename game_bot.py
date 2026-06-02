@@ -141,97 +141,112 @@ class SnakeGame:
 # Tic-Tac-Toe (3 en raya)
 # ---------------------------------------------------------------------------
 
+V = "â¬œ"
+JUGADOR = "âœ–ï¸"
+IA = "â—¯"
+
+
 class TicTacToe:
     def __init__(self):
         self.reset()
 
     def reset(self):
-        self.b = [" "] * 9
-        self.turno = "X"
+        self.tablero = [V] * 9
+        self.turno = JUGADOR
         self.ganador = None
         self.empate = False
 
-    def libres(self):
-        return [i for i, c in enumerate(self.b) if c == " "]
+    def movimientos_disponibles(self):
+        return [i for i, c in enumerate(self.tablero) if c == V]
 
-    def mover(self, idx):
-        if self.b[idx] != " " or self.ganador or self.empate:
+    def hacer_movimiento(self, idx):
+        if self.tablero[idx] != V or self.ganador or self.empate:
             return False
-        self.b[idx] = self.turno
-        self._check()
-        self.turno = "O" if self.turno == "X" else "X"
+        self.tablero[idx] = self.turno
+        self._check_ganador()
+        self.turno = IA if self.turno == JUGADOR else JUGADOR
         return True
 
-    def _check(self):
-        for a,b,c in [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]:
-            if self.b[a] == self.b[b] == self.b[c] != " ":
-                self.ganador = self.b[a]
+    def _check_ganador(self):
+        lineas = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8],
+            [0, 3, 6], [1, 4, 7], [2, 5, 8],
+            [0, 4, 8], [2, 4, 6],
+        ]
+        for l in lineas:
+            if self.tablero[l[0]] == self.tablero[l[1]] == self.tablero[l[2]] != V:
+                self.ganador = self.tablero[l[0]]
                 return
-        if not self.libres():
+        if not self.movimientos_disponibles():
             self.empate = True
 
-    def ia(self):
-        mejor, score = None, -999
-        for i in self.libres():
-            self.b[i] = "O"
-            s = self._minimax(self.b, 0, False)
-            self.b[i] = " "
-            if s > score:
-                score, mejor = s, i
-        if mejor is not None:
-            self.mover(mejor)
+    def ia_mover(self):
+        disp = self.movimientos_disponibles()
+        if not disp:
+            return
+        mejor = self._minimax(self.tablero, IA)
+        self.hacer_movimiento(mejor["pos"])
 
-    def _minimax(self, b, depth, esMax):
-        g = self._eval_board(b)
-        if g == "O": return 10 - depth
-        if g == "X": return depth - 10
-        if not [i for i,c in enumerate(b) if c == " "]: return 0
-        if esMax:
-            best = -999
-            for i, c in enumerate(b):
-                if c == " ":
-                    b[i] = "O"
-                    best = max(best, self._minimax(b, depth+1, False))
-                    b[i] = " "
-            return best
-        else:
-            best = 999
-            for i, c in enumerate(b):
-                if c == " ":
-                    b[i] = "X"
-                    best = min(best, self._minimax(b, depth+1, True))
-                    b[i] = " "
-            return best
+    def _minimax(self, board, jugador, depth=0):
+        disp = [i for i, c in enumerate(board) if c == V]
+        gan = self._eval(board)
 
-    def _eval_board(self, b):
-        for a,b2,c in [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]:
-            if b[a] == b[b2] == b[c] != " ":
-                return b[a]
+        if gan == IA:
+            return {"pos": None, "score": 10 - depth}
+        if gan == JUGADOR:
+            return {"pos": None, "score": depth - 10}
+        if not disp:
+            return {"pos": None, "score": 0}
+
+        moves = []
+        for i in disp:
+            board[i] = jugador
+            s = self._minimax(board, JUGADOR if jugador == IA else IA, depth + 1)["score"]
+            board[i] = V
+            moves.append({"pos": i, "score": s})
+
+        mejor = max if jugador == IA else min
+        return mejor(moves, key=lambda x: x["score"])
+
+    def _eval(self, board):
+        lineas = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8],
+            [0, 3, 6], [1, 4, 7], [2, 5, 8],
+            [0, 4, 8], [2, 4, 6],
+        ]
+        for l in lineas:
+            if board[l[0]] == board[l[1]] == board[l[2]] != V:
+                return board[l[0]]
         return None
 
-    def mostrar(self):
-        t = "ðŸŽ® *3 en Raya*\n\n"
+    def mostrar(self) -> str:
+        texto = "ðŸŽ® *3 en Raya*\n\n"
         for i in range(0, 9, 3):
-            t += "|".join(f" {x} " if x != " " else "   " for x in self.b[i:i+3]) + "\n"
-            if i < 6: t += "---+---+---\n"
+            texto += "".join(self.tablero[i:i+3]) + "\n"
         if self.ganador:
-            t += f"\n{'ðŸŽ‰ Ganaste!' if self.ganador == 'X' else 'ðŸ˜µ Perdiste!'}"
+            texto += f"\n{'ðŸŽ‰ Ganaste!' if self.ganador == JUGADOR else 'ðŸ˜µ Perdiste!'}"
         elif self.empate:
-            t += "\nðŸ¤ Empate!"
+            texto += "\nðŸ¤ Empate!"
         else:
-            t += f"\nTurno de {'ti (X)' if self.turno == 'X' else 'IA (O)'}"
-        return t
+            texto += f"\nTurno de {'ti' if self.turno == JUGADOR else 'la IA'}"
+        return texto
 
+    @property
     def botones(self):
         if self.ganador or self.empate:
-            return [[{"text": "ðŸ”„ Otra", "callback_data": "ttt_rst"}]]
+            return [
+                [{"text": "ðŸ”„ Otra partida", "callback_data": "ttt_reset"}],
+                [{"text": "ðŸ—£ï¸ Decir quÃ© tal", "callback_data": "ttt_gameover_opinion"}],
+            ]
         filas = []
         for i in range(0, 9, 3):
             fila = []
             for j in range(3):
-                c = self.b[i+j]
-                txt = {" ": "âž–", "X": "âŒ", "O": "â­•"}.get(c, c)
-                fila.append({"text": txt, "callback_data": f"ttt_{i+j}"})
+                idx = i + j
+                txt = self.tablero[idx]
+                if txt == V:
+                    txt = "â¬œ"
+                fila.append({"text": txt, "callback_data": f"ttt_{idx}"})
             filas.append(fila)
         return filas
 
@@ -447,7 +462,12 @@ async def ttt_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not juego:
         return
 
-    if data == "ttt_rst":
+    if data == "ttt_gameover_opinion":
+        resp = chat_ai("el usuario me dice como le ha parecido el 3 en raya, responde brevemente", chat_id)
+        await q.edit_message_text(resp)
+        return
+
+    if data == "ttt_reset":
         if chat_id in _tareas:
             _tareas[chat_id].cancel()
         limpiar(chat_id)
@@ -459,14 +479,21 @@ async def ttt_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         guardar_id(chat_id, q.message.message_id)
         return
 
+    logger.info("TTT callback: data=%s chat=%s", data, chat_id)
     if not data.startswith("ttt_"):
         return
     idx = int(data.split("_")[1])
-    if juego.turno != "X" or juego.ganador or juego.empate:
+    if juego.turno != JUGADOR or juego.ganador or juego.empate:
+        logger.info("TTT ignored: turno=%s ganador=%s empate=%s", juego.turno, juego.ganador, juego.empate)
         return
-    juego.mover(idx)
+    juego.hacer_movimiento(idx)
     if not juego.ganador and not juego.empate:
-        juego.ia()
+        try:
+            juego.ia_mover()
+        except Exception as e:
+            logger.error("TTT ia_mover error: %s", e)
+            await q.edit_message_text("Error en la IA, intentalo de nuevo con /ttt")
+            return
     texto = juego.mostrar()
     teclado = InlineKeyboardMarkup(juego.botones)
     try:
@@ -505,10 +532,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ---------------------------------------------------------------------------
 
 def main():
-    import http.server
-    import json as _json
-    import threading
-
     port = int(os.environ.get("PORT", 8080))
     url = os.environ.get("RENDER_EXTERNAL_URL", "https://gamebot-dd6p.onrender.com")
 
@@ -525,17 +548,65 @@ def main():
     asyncio.set_event_loop(loop)
     loop.run_until_complete(app.initialize())
     loop.run_until_complete(app.start())
-    loop.run_until_complete(app.updater.start_webhook(
-        listen="0.0.0.0",
-        port=port,
-        url_path="telegram-webhook",
-    ))
-    loop.run_until_complete(app.bot.set_webhook(url=f"{url}/telegram-webhook"))
-    logger.info("Webhook %s/telegram-webhook", url)
+
+    class WebhookHandler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path in ("/", "/healthz"):
+                self._json({"status": "ok"})
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+        def do_POST(self):
+            if self.path != "/telegram-webhook":
+                self.send_response(404)
+                self.end_headers()
+                return
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length)
+            try:
+                data = json.loads(body)
+                update = Update.de_json(data, app.bot)
+
+                async def handle():
+                    try:
+                        await app.process_update(update)
+                    except Exception as e:
+                        logger.error("Update error: %s", e)
+
+                asyncio.run_coroutine_threadsafe(handle(), loop)
+                self._json({"ok": True})
+            except Exception as e:
+                logger.error("Webhook error: %s", e)
+                self.send_response(200)
+                self.end_headers()
+
+        def _json(self, data):
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(data).encode())
+
+        def log_message(self, *a):
+            pass
+
+    server = http.server.HTTPServer(("0.0.0.0", port), WebhookHandler)
+    t = threading.Thread(target=server.serve_forever, daemon=True)
+    t.start()
+    logger.info("Servidor web en puerto %d", port)
+
+    webhook_url = f"{url}/telegram-webhook"
+    loop.run_until_complete(app.bot.set_webhook(webhook_url))
+    logger.info("Webhook registrado: %s", webhook_url)
+
     try:
         loop.run_forever()
     except KeyboardInterrupt:
         pass
+    finally:
+        server.shutdown()
+        loop.run_until_complete(app.stop())
+        loop.run_until_complete(app.shutdown())
 
 
 if __name__ == "__main__":
