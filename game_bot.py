@@ -1,5 +1,5 @@
 """
-GameBot â€” Bot de juegos para Telegram con chat IA.
+GameBot — Bot de juegos para Telegram con chat IA.
 Listo para desplegar en Render / PythonAnywhere.
 """
 
@@ -35,11 +35,11 @@ MAX_MEMORIA = 100
 # Snake Game
 # ---------------------------------------------------------------------------
 
-VACIO = "â¬›"
-CABEZA = "ðŸŸ©"
-CUERPO = "ðŸŸ¢"
-COMIDA = "ðŸŽ"
-MURO = "ðŸŸ«"
+VACIO = "⬛"
+CABEZA = "🟩"
+CUERPO = "🟢"
+COMIDA = "🍎"
+MURO = "🟫"
 
 
 class SnakeGame:
@@ -114,26 +114,26 @@ class SnakeGame:
 
     def estado_texto(self) -> str:
         if self.ganado:
-            estado = "ðŸŽ‰ Â¡GANASTE! ðŸŽ‰"
+            estado = "🎉 ¡GANASTE! 🎉"
         elif self.game_over:
-            estado = "ðŸ’€ GAME OVER ðŸ’€"
+            estado = "💀 GAME OVER 💀"
         else:
-            estado = "ðŸ Snake"
-        return f"*{estado}*\nPuntuaciÃ³n: `{self.puntuacion}`\n\n{self.tablero()} | Vel: {self.velocidad:.2f}s"
+            estado = "🐍 Snake"
+        return f"*{estado}*\nPuntuación: `{self.puntuacion}`\n\n{self.tablero()} | Vel: {self.velocidad:.2f}s"
 
     @property
     def botones(self):
         if self.game_over or self.ganado:
             return [
-                [{"text": "ðŸ”„ Jugar de nuevo", "callback_data": "snake_reset"}],
-                [{"text": "ðŸ—£ï¸ Decir quÃ© tal", "callback_data": "snake_gameover_opinion"}],
+                [{"text": "🔄 Jugar de nuevo", "callback_data": "snake_reset"}],
+                [{"text": "🗣️ Decir qué tal", "callback_data": "snake_gameover_opinion"}],
             ]
         return [
-            [{"text": "â¬†ï¸", "callback_data": "snake_up"}],
+            [{"text": "⬆️", "callback_data": "snake_up"}],
             [
-                {"text": "â¬…ï¸", "callback_data": "snake_left"},
-                {"text": "â¬‡ï¸", "callback_data": "snake_down"},
-                {"text": "âž¡ï¸", "callback_data": "snake_right"},
+                {"text": "⬅️", "callback_data": "snake_left"},
+                {"text": "⬇️", "callback_data": "snake_down"},
+                {"text": "➡️", "callback_data": "snake_right"},
             ],
         ]
 
@@ -211,27 +211,27 @@ class TicTacToe:
         return None
 
     def mostrar(self):
-        t = "ðŸŽ® *3 en Raya*\n\n"
+        t = "🎮 *3 en Raya*\n\n"
         for i in range(0, 9, 3):
             t += "|".join(f" {x} " if x != " " else "   " for x in self.b[i:i+3]) + "\n"
             if i < 6: t += "---+---+---\n"
         if self.ganador:
-            t += f"\n{'ðŸŽ‰ Ganaste!' if self.ganador == 'X' else 'ðŸ˜µ Perdiste!'}"
+            t += f"\n{'🎉 Ganaste!' if self.ganador == 'X' else '😵 Perdiste!'}"
         elif self.empate:
-            t += "\nðŸ¤ Empate!"
+            t += "\n🤝 Empate!"
         else:
             t += f"\nTurno de {'ti (X)' if self.turno == 'X' else 'IA (O)'}"
         return t
 
     def botones(self):
         if self.ganador or self.empate:
-            return [[{"text": "ðŸ”„ Otra", "callback_data": "ttt_rst"}]]
+            return [[{"text": "🔄 Otra", "callback_data": "ttt_rst"}]]
         filas = []
         for i in range(0, 9, 3):
             fila = []
             for j in range(3):
                 c = self.b[i+j]
-                txt = {" ": "âž–", "X": "âŒ", "O": "â­•"}.get(c, c)
+                txt = {" ": "➖", "X": "❌", "O": "⭕"}.get(c, c)
                 fila.append({"text": txt, "callback_data": f"ttt_{i+j}"})
             filas.append(fila)
         return filas
@@ -245,11 +245,11 @@ SYSTEM_PROMPT = """Eres GAMEBOT, un bot creado para divertir y entretener a los 
 
 PERSONALIDAD:
 - Eres gamberro, usas lenguaje callejero y coloquial
-- Saludazo siempre: "Bueno lo primero de todo, Â¿cÃ³mo estÃ¡n los mÃ¡quinas?" o "QuÃ© pasa chavales"
-- Cuando alguien pregunta quÃ© hacer: "Â¿Quieres jugar a un juego?"
-- DespuÃ©s de una partida: preguntas quÃ© tal les ha parecido
+- Saludazo siempre: "Bueno lo primero de todo, ¿cómo están los máquinas?" o "Qué pasa chavales"
+- Cuando alguien pregunta qué hacer: "¿Quieres jugar a un juego?"
+- Después de una partida: preguntas qué tal les ha parecido
 - Respondes con humor, eres breve y directo
-- Usas espaÃ±ol de EspaÃ±a callejero
+- Usas español de España callejero
 
 JUEGOS DISPONIBLES:
 - /snake: El Snake de toda la vida, con botones para moverse
@@ -257,18 +257,18 @@ JUEGOS DISPONIBLES:
 - /chat <texto>: Hablar conmigo directamente
 
 COMANDOS:
-/start - MenÃº principal
+/start - Menú principal
 /snake - Jugar al Snake
 /ttt - 3 en Raya
 /chat <texto> - Hablar conmigo
 /help - Ayuda
 
-INFORMACIÃ“N IMPORTANTE:
+INFORMACIÓN IMPORTANTE:
 - Te llamas GameBot
 - Si te preguntan sobre los juegos, los explicas con orgullo
-- Pueden consultarte cualquier cosa sobre cÃ³mo jugar
-- Siempre preguntas quÃ© tal les ha parecido despuÃ©s de una partida
-- Invitas a jugar con "Â¿Quieres jugar a un juego?"
+- Pueden consultarte cualquier cosa sobre cómo jugar
+- Siempre preguntas qué tal les ha parecido después de una partida
+- Invitas a jugar con "¿Quieres jugar a un juego?"
 - Si te dicen que no saben jugar, les explicas sin reirte demasiado"""
 
 memoria: dict = {}
@@ -316,7 +316,7 @@ def chat_ai(mensaje, chat_id):
                 return resp
         except Exception as e:
             logger.warning(f"Chat error con {url.split('.')[1]}: {e}")
-    return "TÃ­o, ahora mismo no puedo pensar, dame un segundÃ­n y vuelve a preguntar."
+    return "Tío, ahora mismo no puedo pensar, dame un segundín y vuelve a preguntar."
 
 
 # ---------------------------------------------------------------------------
