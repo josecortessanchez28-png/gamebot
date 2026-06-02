@@ -4,6 +4,7 @@ Listo para desplegar en Render / PythonAnywhere.
 """
 
 import asyncio
+import json
 import logging
 import os
 import random
@@ -26,6 +27,9 @@ logger = logging.getLogger("gamebot")
 TOKEN = os.environ.get("GAMEBOT_TOKEN", "8611835716:AAH3R8brdAVvM33O77In7lnYlTj43G9YJcI")
 GROQ_KEY = os.environ.get("GROQ_KEY")
 OPENROUTER_KEY = os.environ.get("OPENROUTER_KEY")
+
+MEMORIA_ARCHIVO = "memoria.json"
+MAX_MEMORIA = 100
 
 # ---------------------------------------------------------------------------
 # Snake Game
@@ -268,13 +272,27 @@ INFORMACIÃ“N IMPORTANTE:
 - Si te dicen que no saben jugar, les explicas sin reirte demasiado"""
 
 memoria: dict = {}
+try:
+    with open(MEMORIA_ARCHIVO, "r", encoding="utf-8") as f:
+        memoria = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError):
+    memoria = {}
+
+
+def _guardar_memoria():
+    try:
+        with open(MEMORIA_ARCHIVO, "w", encoding="utf-8") as f:
+            json.dump(memoria, f, ensure_ascii=False)
+    except Exception as e:
+        logger.warning("No se pudo guardar memoria: %s", e)
 
 
 def chat_ai(mensaje, chat_id):
-    if chat_id not in memoria:
-        memoria[chat_id] = []
-    memoria[chat_id].append({"role": "user", "content": mensaje})
-    history = memoria[chat_id][-20:]
+    cid = str(chat_id)
+    if cid not in memoria:
+        memoria[cid] = []
+    memoria[cid].append({"role": "user", "content": mensaje})
+    history = memoria[cid][-MAX_MEMORIA:]
 
     msgs = [{"role": "system", "content": SYSTEM_PROMPT}] + history
 
@@ -293,7 +311,8 @@ def chat_ai(mensaje, chat_id):
             )
             if r.ok:
                 resp = r.json()["choices"][0]["message"]["content"].strip()
-                memoria[chat_id].append({"role": "assistant", "content": resp})
+                memoria[cid].append({"role": "assistant", "content": resp})
+                _guardar_memoria()
                 return resp
         except Exception as e:
             logger.warning(f"Chat error con {url.split('.')[1]}: {e}")
