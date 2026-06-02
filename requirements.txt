@@ -1,3 +1,2 @@
-# GameBot dependencies
-python-telegram-bot>=20.0
+python-telegram-bot[webhooks]>=20.0
 requests>=2.31.0
