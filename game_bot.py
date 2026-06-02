@@ -1,10 +1,4 @@
-"""
-GameBot — Bot de juegos para Telegram con chat IA.
-Listo para desplegar en Render / PythonAnywhere.
-"""
-
-import asyncio
-import json
+﻿import asyncio
 import logging
 import os
 import random
@@ -28,19 +22,7 @@ TOKEN = os.environ.get("GAMEBOT_TOKEN", "8611835716:AAH3R8brdAVvM33O77In7lnYlTj4
 GROQ_KEY = os.environ.get("GROQ_KEY")
 OPENROUTER_KEY = os.environ.get("OPENROUTER_KEY")
 
-MEMORIA_ARCHIVO = "memoria.json"
-MAX_MEMORIA = 100
-
-# ---------------------------------------------------------------------------
-# Snake Game
-# ---------------------------------------------------------------------------
-
-VACIO = "⬛"
-CABEZA = "🟩"
-CUERPO = "🟢"
-COMIDA = "🍎"
-MURO = "🟫"
-
+# Snake
 
 class SnakeGame:
     def __init__(self, ancho=10, alto=10):
@@ -52,19 +34,16 @@ class SnakeGame:
         cx, cy = self.ancho // 2, self.alto // 2
         self.serpiente = [(cx, cy), (cx - 1, cy), (cx - 2, cy)]
         self.direccion = (1, 0)
-        self.comida = self._generar_comida()
+        self.comida = None
+        self._nueva_comida()
         self.puntuacion = 0
         self.game_over = False
         self.ganado = False
 
-    def _generar_comida(self):
-        disponibles = [
-            (x, y) for x in range(self.ancho) for y in range(self.alto)
-            if (x, y) not in self.serpiente
-        ]
-        return random.choice(disponibles) if disponibles else None
+    def _nueva_comida(self):
+        disponibles = [(x, y) for x in range(self.ancho) for y in range(self.alto) if (x, y) not in self.serpiente]
+        self.comida = random.choice(disponibles) if disponibles else None
 
-    @property
     def velocidad(self) -> float:
         return max(0.5, 1.0 - self.puntuacion * 0.04)
 
@@ -86,7 +65,7 @@ class SnakeGame:
         self.serpiente.insert(0, nueva)
         if nueva == self.comida:
             self.puntuacion += 1
-            self.comida = self._generar_comida()
+            self._nueva_comida()
             if self.comida is None:
                 self.ganado = True
                 return False
@@ -95,52 +74,55 @@ class SnakeGame:
         return True
 
     def tablero(self) -> str:
-        lineas = [MURO * (self.ancho + 2)]
+        c = "#"
+        e = "@"
+        f = "*"
+        m = "#"
+        lineas = [m * (self.ancho + 2)]
         for y in range(self.alto):
-            fila = [MURO]
+            fila = [m]
             for x in range(self.ancho):
-                if (x, y) == self.serpiente[0]:
-                    fila.append(CABEZA)
-                elif (x, y) in self.serpiente:
-                    fila.append(CUERPO)
-                elif self.comida and (x, y) == self.comida:
-                    fila.append(COMIDA)
+                p = (x, y)
+                if p == self.serpiente[0]:
+                    fila.append(e)
+                elif p in self.serpiente:
+                    fila.append(e)
+                elif self.comida and p == self.comida:
+                    fila.append(f)
                 else:
-                    fila.append(VACIO)
-            fila.append(MURO)
+                    fila.append(c)
+            fila.append(m)
             lineas.append("".join(fila))
-        lineas.append(MURO * (self.ancho + 2))
+        lineas.append(m * (self.ancho + 2))
         return "\n".join(lineas)
 
     def estado_texto(self) -> str:
         if self.ganado:
-            estado = "🎉 ¡GANASTE! 🎉"
+            s = "GANASTE!"
         elif self.game_over:
-            estado = "💀 GAME OVER 💀"
+            s = "GAME OVER"
         else:
-            estado = "🐍 Snake"
-        return f"*{estado}*\nPuntuación: `{self.puntuacion}`\n\n{self.tablero()} | Vel: {self.velocidad:.2f}s"
+            s = "Snake"
+        return f"*{s}*\nPuntos: `{self.puntuacion}`\n\n{self.tablero()}"
 
     @property
     def botones(self):
         if self.game_over or self.ganado:
             return [
-                [{"text": "🔄 Jugar de nuevo", "callback_data": "snake_reset"}],
-                [{"text": "🗣️ Decir qué tal", "callback_data": "snake_gameover_opinion"}],
+                [{"text": "Jugar de nuevo", "callback_data": "snake_reset"}],
+                [{"text": "Decir que tal", "callback_data": "snake_gameover_opinion"}],
             ]
         return [
-            [{"text": "⬆️", "callback_data": "snake_up"}],
+            [{"text": "ARRIBA", "callback_data": "snake_up"}],
             [
-                {"text": "⬅️", "callback_data": "snake_left"},
-                {"text": "⬇️", "callback_data": "snake_down"},
-                {"text": "➡️", "callback_data": "snake_right"},
+                {"text": "IZQUIERDA", "callback_data": "snake_left"},
+                {"text": "ABAJO", "callback_data": "snake_down"},
+                {"text": "DERECHA", "callback_data": "snake_right"},
             ],
         ]
 
 
-# ---------------------------------------------------------------------------
-# Tic-Tac-Toe (3 en raya)
-# ---------------------------------------------------------------------------
+# Tic-Tac-Toe
 
 class TicTacToe:
     def __init__(self):
@@ -164,7 +146,7 @@ class TicTacToe:
         return True
 
     def _check(self):
-        for a,b,c in [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]:
+        for a, b, c in [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]:
             if self.b[a] == self.b[b] == self.b[c] != " ":
                 self.ganador = self.b[a]
                 return
@@ -183,10 +165,10 @@ class TicTacToe:
             self.mover(mejor)
 
     def _minimax(self, b, depth, esMax):
-        g = self._eval_board(b)
+        g = self._eval(b)
         if g == "O": return 10 - depth
         if g == "X": return depth - 10
-        if not [i for i,c in enumerate(b) if c == " "]: return 0
+        if not [i for i, c in enumerate(b) if c == " "]: return 0
         if esMax:
             best = -999
             for i, c in enumerate(b):
@@ -204,52 +186,54 @@ class TicTacToe:
                     b[i] = " "
             return best
 
-    def _eval_board(self, b):
-        for a,b2,c in [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]:
+    def _eval(self, b):
+        for a, b2, c in [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]:
             if b[a] == b[b2] == b[c] != " ":
                 return b[a]
         return None
 
     def mostrar(self):
-        t = "🎮 *3 en Raya*\n\n"
+        t = "*3 en Raya*\n\n"
         for i in range(0, 9, 3):
-            t += "|".join(f" {x} " if x != " " else "   " for x in self.b[i:i+3]) + "\n"
-            if i < 6: t += "---+---+---\n"
+            t += " | ".join(f"{x}" if x != " " else " " for x in self.b[i:i+3]) + "\n"
+            if i < 6:
+                t += "---+---+---\n"
         if self.ganador:
-            t += f"\n{'🎉 Ganaste!' if self.ganador == 'X' else '😵 Perdiste!'}"
+            t += f"\n{'Ganaste!' if self.ganador == 'X' else 'Perdiste!'}"
         elif self.empate:
-            t += "\n🤝 Empate!"
+            t += "\nEmpate!"
         else:
             t += f"\nTurno de {'ti (X)' if self.turno == 'X' else 'IA (O)'}"
         return t
 
     def botones(self):
         if self.ganador or self.empate:
-            return [[{"text": "🔄 Otra", "callback_data": "ttt_rst"}]]
+            return [[{"text": "Otra partida", "callback_data": "ttt_rst"}]]
         filas = []
         for i in range(0, 9, 3):
             fila = []
             for j in range(3):
                 c = self.b[i+j]
-                txt = {" ": "➖", "X": "❌", "O": "⭕"}.get(c, c)
+                txt = {" ": "-", "X": "X", "O": "O"}.get(c, c)
                 fila.append({"text": txt, "callback_data": f"ttt_{i+j}"})
             filas.append(fila)
         return filas
 
 
-# ---------------------------------------------------------------------------
-# AI Chat con memoria y personalidad
-# ---------------------------------------------------------------------------
+# Chat + memoria
+
+MEMORIA_MAX = 100
+memoria: dict = {}
 
 SYSTEM_PROMPT = """Eres GAMEBOT, un bot creado para divertir y entretener a los miembros del grupo.
 
 PERSONALIDAD:
 - Eres gamberro, usas lenguaje callejero y coloquial
-- Saludazo siempre: "Bueno lo primero de todo, ¿cómo están los máquinas?" o "Qué pasa chavales"
-- Cuando alguien pregunta qué hacer: "¿Quieres jugar a un juego?"
-- Después de una partida: preguntas qué tal les ha parecido
+- Saludazo siempre: "Bueno lo primero de todo, como estan los maquinas?" o "Que pasa chavales"
+- Cuando alguien pregunta que hacer: "Quieres jugar a un juego?"
+- Despues de una partida: preguntas que tal les ha parecido
 - Respondes con humor, eres breve y directo
-- Usas español de España callejero
+- Usas espanol de Espana callejero
 
 JUEGOS DISPONIBLES:
 - /snake: El Snake de toda la vida, con botones para moverse
@@ -257,34 +241,19 @@ JUEGOS DISPONIBLES:
 - /chat <texto>: Hablar conmigo directamente
 
 COMANDOS:
-/start - Menú principal
+/start - Menu principal
 /snake - Jugar al Snake
 /ttt - 3 en Raya
 /chat <texto> - Hablar conmigo
 /help - Ayuda
 
-INFORMACIÓN IMPORTANTE:
+INFORMACION IMPORTANTE:
 - Te llamas GameBot
 - Si te preguntan sobre los juegos, los explicas con orgullo
-- Pueden consultarte cualquier cosa sobre cómo jugar
-- Siempre preguntas qué tal les ha parecido después de una partida
-- Invitas a jugar con "¿Quieres jugar a un juego?"
+- Pueden consultarte cualquier cosa sobre como jugar
+- Siempre preguntas que tal les ha parecido despues de una partida
+- Invitas a jugar con "Quieres jugar a un juego?"
 - Si te dicen que no saben jugar, les explicas sin reirte demasiado"""
-
-memoria: dict = {}
-try:
-    with open(MEMORIA_ARCHIVO, "r", encoding="utf-8") as f:
-        memoria = json.load(f)
-except (FileNotFoundError, json.JSONDecodeError):
-    memoria = {}
-
-
-def _guardar_memoria():
-    try:
-        with open(MEMORIA_ARCHIVO, "w", encoding="utf-8") as f:
-            json.dump(memoria, f, ensure_ascii=False)
-    except Exception as e:
-        logger.warning("No se pudo guardar memoria: %s", e)
 
 
 def chat_ai(mensaje, chat_id):
@@ -292,8 +261,7 @@ def chat_ai(mensaje, chat_id):
     if cid not in memoria:
         memoria[cid] = []
     memoria[cid].append({"role": "user", "content": mensaje})
-    history = memoria[cid][-MAX_MEMORIA:]
-
+    history = memoria[cid][-MEMORIA_MAX:]
     msgs = [{"role": "system", "content": SYSTEM_PROMPT}] + history
 
     for url, key, model in [
@@ -312,16 +280,13 @@ def chat_ai(mensaje, chat_id):
             if r.ok:
                 resp = r.json()["choices"][0]["message"]["content"].strip()
                 memoria[cid].append({"role": "assistant", "content": resp})
-                _guardar_memoria()
                 return resp
         except Exception as e:
             logger.warning(f"Chat error con {url.split('.')[1]}: {e}")
-    return "Tío, ahora mismo no puedo pensar, dame un segundín y vuelve a preguntar."
+    return "Tio, ahora mismo no puedo pensar, dame un segundin y vuelve a preguntar."
 
 
-# ---------------------------------------------------------------------------
-# Bot handlers
-# ---------------------------------------------------------------------------
+# Handlers
 
 partidas: dict = {}
 _tareas: dict = {}
@@ -352,7 +317,7 @@ async def bucle_snake(app, chat_id):
             juego = obtener_juego(chat_id)
             if not juego or juego.game_over or juego.ganado:
                 break
-            await asyncio.sleep(juego.velocidad)
+            await asyncio.sleep(juego.velocidad())
             juego = obtener_juego(chat_id)
             if not juego or juego.game_over or juego.ganado:
                 break
@@ -392,12 +357,13 @@ async def cmd_snake(update: Update, context: ContextTypes.DEFAULT_TYPE):
     limpiar(chat_id)
     juego = SnakeGame()
     partidas[chat_id] = {"juego": juego, "msg_id": 0}
-    texto = juego.estado_texto()
-    teclado = InlineKeyboardMarkup(juego.botones)
-    msg = await update.message.reply_text(texto, reply_markup=teclado, parse_mode="Markdown")
+    msg = await update.message.reply_text(
+        juego.estado_texto(),
+        reply_markup=InlineKeyboardMarkup(juego.botones),
+        parse_mode="Markdown",
+    )
     guardar_id(chat_id, msg.message_id)
-    t = asyncio.create_task(bucle_snake(context.application, chat_id))
-    _tareas[chat_id] = t
+    _tareas[chat_id] = asyncio.create_task(bucle_snake(context.application, chat_id))
     logger.info("Snake chat %d", chat_id)
 
 
@@ -413,12 +379,13 @@ async def snake_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         limpiar(chat_id)
         juego = SnakeGame()
         partidas[chat_id] = {"juego": juego, "msg_id": 0}
-        texto = juego.estado_texto()
-        teclado = InlineKeyboardMarkup(juego.botones)
-        await q.edit_message_text(texto, reply_markup=teclado, parse_mode="Markdown")
+        await q.edit_message_text(
+            juego.estado_texto(),
+            reply_markup=InlineKeyboardMarkup(juego.botones),
+            parse_mode="Markdown",
+        )
         guardar_id(chat_id, q.message.message_id)
-        t = asyncio.create_task(bucle_snake(context.application, chat_id))
-        _tareas[chat_id] = t
+        _tareas[chat_id] = asyncio.create_task(bucle_snake(context.application, chat_id))
         return
 
     if data == "snake_gameover_opinion":
@@ -435,10 +402,6 @@ async def snake_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         juego.cambiar_direccion(nd)
 
 
-# ---------------------------------------------------------------------------
-# Tic-Tac-Toe handlers
-# ---------------------------------------------------------------------------
-
 async def cmd_ttt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     if chat_id in _tareas:
@@ -446,9 +409,11 @@ async def cmd_ttt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     limpiar(chat_id)
     juego = TicTacToe()
     partidas[chat_id] = {"juego": juego, "msg_id": 0}
-    texto = juego.mostrar()
-    teclado = InlineKeyboardMarkup(juego.botones)
-    msg = await update.message.reply_text(texto, reply_markup=teclado, parse_mode="Markdown")
+    msg = await update.message.reply_text(
+        juego.mostrar(),
+        reply_markup=InlineKeyboardMarkup(juego.botones),
+        parse_mode="Markdown",
+    )
     guardar_id(chat_id, msg.message_id)
     logger.info("TTT chat %d", chat_id)
 
@@ -469,9 +434,11 @@ async def ttt_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         limpiar(chat_id)
         juego = TicTacToe()
         partidas[chat_id] = {"juego": juego, "msg_id": 0}
-        texto = juego.mostrar()
-        teclado = InlineKeyboardMarkup(juego.botones)
-        await q.edit_message_text(texto, reply_markup=teclado, parse_mode="Markdown")
+        await q.edit_message_text(
+            juego.mostrar(),
+            reply_markup=InlineKeyboardMarkup(juego.botones),
+            parse_mode="Markdown",
+        )
         guardar_id(chat_id, q.message.message_id)
         return
 
@@ -483,23 +450,21 @@ async def ttt_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     juego.mover(idx)
     if not juego.ganador and not juego.empate:
         juego.ia()
-    texto = juego.mostrar()
-    teclado = InlineKeyboardMarkup(juego.botones)
     try:
-        await q.edit_message_text(texto, reply_markup=teclado, parse_mode="Markdown")
+        await q.edit_message_text(
+            juego.mostrar(),
+            reply_markup=InlineKeyboardMarkup(juego.botones),
+            parse_mode="Markdown",
+        )
     except Exception as e:
         logger.warning("ttt edit error: %s", e)
 
-
-# ---------------------------------------------------------------------------
-# Chat handler (texto libre)
-# ---------------------------------------------------------------------------
 
 async def cmd_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     texto = " ".join(context.args)
     if not texto:
-        await update.message.reply_text("Uso: `/chat <tu mensaje>`", parse_mode="Markdown")
+        await update.message.reply_text("Usa: /chat <mensaje>")
         return
     await update.message.reply_text("Pensando...")
     resp = chat_ai(texto, chat_id)
@@ -515,10 +480,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     resp = chat_ai(texto, chat_id)
     await update.message.reply_text(resp)
 
-
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
 
 def main():
     port = int(os.environ.get("PORT", 8080))
