@@ -481,6 +481,11 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(resp)
 
 
+import json as _json_mod
+import http.server
+import threading
+
+
 def main():
     port = int(os.environ.get("PORT", 8080))
     url = os.environ.get("RENDER_EXTERNAL_URL", "https://gamebot-dd6p.onrender.com")
@@ -493,14 +498,53 @@ def main():
     app.add_handler(CallbackQueryHandler(snake_cb, pattern="^snake_"))
     app.add_handler(CallbackQueryHandler(ttt_cb, pattern="^ttt_"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(app.initialize())
+    loop.run_until_complete(app.start())
     logger.info("GameBot iniciado")
 
-    app.run_webhook(
-        listen="0.0.0.0",
-        port=port,
-        url_path="/telegram-webhook",
-        webhook_url=f"{url}/telegram-webhook",
-    )
+    class WH(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self._json({"ok": True})
+
+        def do_POST(self):
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length)
+            try:
+                data = _json_mod.loads(body)
+                update = Update.de_json(data, app.bot)
+                asyncio.run_coroutine_threadsafe(app.process_update(update), loop)
+                self._json({"ok": True})
+            except Exception as e:
+                logger.error("WH error: %s", e)
+                self.send_response(200)
+                self.end_headers()
+
+        def _json(self, data):
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(_json_mod.dumps(data).encode())
+
+        def log_message(self, *a):
+            pass
+
+    server = http.server.HTTPServer(("0.0.0.0", port), WH)
+    t = threading.Thread(target=server.serve_forever, daemon=True)
+    t.start()
+    loop.run_until_complete(app.bot.set_webhook(url=f"{url}/telegram-webhook"))
+    logger.info("Webhook %s/telegram-webhook", url)
+
+    try:
+        loop.run_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.shutdown()
+        loop.run_until_complete(app.stop())
+        loop.run_until_complete(app.shutdown())
 
 
 if __name__ == "__main__":
