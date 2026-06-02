@@ -505,6 +505,10 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ---------------------------------------------------------------------------
 
 def main():
+    import http.server
+    import json as _json
+    import threading
+
     port = int(os.environ.get("PORT", 8080))
     url = os.environ.get("RENDER_EXTERNAL_URL", "https://gamebot-dd6p.onrender.com")
 
@@ -517,12 +521,21 @@ def main():
     app.add_handler(CallbackQueryHandler(ttt_cb, pattern="^ttt_"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
-    app.run_webhook(
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(app.initialize())
+    loop.run_until_complete(app.start())
+    loop.run_until_complete(app.updater.start_webhook(
         listen="0.0.0.0",
         port=port,
         url_path="telegram-webhook",
-        webhook_url=f"{url}/telegram-webhook",
-    )
+    ))
+    loop.run_until_complete(app.bot.set_webhook(url=f"{url}/telegram-webhook"))
+    logger.info("Webhook %s/telegram-webhook", url)
+    try:
+        loop.run_forever()
+    except KeyboardInterrupt:
+        pass
 
 
 if __name__ == "__main__":
