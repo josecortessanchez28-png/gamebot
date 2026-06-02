@@ -142,8 +142,8 @@ class SnakeGame:
 # ---------------------------------------------------------------------------
 
 V = "â¬œ"
-JUGADOR = "âŒ"
-IA = "â­•"
+JUGADOR = "âœ–ï¸"
+IA = "â—¯"
 
 
 class TicTacToe:
@@ -567,9 +567,14 @@ def main():
             try:
                 data = json.loads(body)
                 update = Update.de_json(data, app.bot)
-                asyncio.run_coroutine_threadsafe(
-                    app.process_update(update), loop
-                )
+
+                async def handle():
+                    try:
+                        await app.process_update(update)
+                    except Exception as e:
+                        logger.error("Update error: %s", e)
+
+                asyncio.run_coroutine_threadsafe(handle(), loop)
                 self._json({"ok": True})
             except Exception as e:
                 logger.error("Webhook error: %s", e)
