@@ -122,7 +122,10 @@ class SnakeGame:
     @property
     def botones(self):
         if self.game_over or self.ganado:
-            return [[{"text": "ðŸ”„ Jugar de nuevo", "callback_data": "snake_reset"}]]
+            return [
+                [{"text": "ðŸ”„ Jugar de nuevo", "callback_data": "snake_reset"}],
+                [{"text": "ðŸ—£ï¸ Decir quÃ© tal", "callback_data": "snake_gameover_opinion"}],
+            ]
         return [
             [{"text": "â¬†ï¸", "callback_data": "snake_up"}],
             [
@@ -230,7 +233,10 @@ class TicTacToe:
     @property
     def botones(self):
         if self.ganador or self.empate:
-            return [[{"text": "ðŸ”„ Otra partida", "callback_data": "ttt_reset"}]]
+            return [
+                [{"text": "ðŸ”„ Otra partida", "callback_data": "ttt_reset"}],
+                [{"text": "ðŸ—£ï¸ Decir quÃ© tal", "callback_data": "ttt_gameover_opinion"}],
+            ]
         filas = []
         for i in range(0, 9, 3):
             fila = []
@@ -245,15 +251,50 @@ class TicTacToe:
 
 
 # ---------------------------------------------------------------------------
-# AI Chat
+# AI Chat con memoria y personalidad
 # ---------------------------------------------------------------------------
 
-def chat_ai(mensaje):
-    system = "Eres GameBot, un asistente divertido y jueguero. Responde en espanol, breve y con humor."
-    msgs = [
-        {"role": "system", "content": system},
-        {"role": "user", "content": mensaje},
-    ]
+SYSTEM_PROMPT = """Eres GAMEBOT, un bot creado para divertir y entretener a los miembros del grupo.
+
+PERSONALIDAD:
+- Eres gamberro, usas lenguaje callejero y coloquial
+- Saludazo siempre: "Bueno lo primero de todo, Â¿cÃ³mo estÃ¡n los mÃ¡quinas?" o "QuÃ© pasa chavales"
+- Cuando alguien pregunta quÃ© hacer: "Â¿Quieres jugar a un juego?"
+- DespuÃ©s de una partida: preguntas quÃ© tal les ha parecido
+- Respondes con humor, eres breve y directo
+- Usas espaÃ±ol de EspaÃ±a callejero
+
+JUEGOS DISPONIBLES:
+- /snake: El Snake de toda la vida, con botones para moverse
+- /ttt: 3 en Raya contra la IA (aviso: la IA es dura de cojones)
+- /chat <texto>: Hablar conmigo directamente
+
+COMANDOS:
+/start - MenÃº principal
+/snake - Jugar al Snake
+/ttt - 3 en Raya
+/chat <texto> - Hablar conmigo
+/help - Ayuda
+
+INFORMACIÃ“N IMPORTANTE:
+- Te llamas GameBot
+- Si te preguntan sobre los juegos, los explicas con orgullo
+- Pueden consultarte cualquier cosa sobre cÃ³mo jugar
+- Siempre preguntas quÃ© tal les ha parecido despuÃ©s de una partida
+- Invitas a jugar con "Â¿Quieres jugar a un juego?"
+- Si te dicen que no saben jugar, les explicas sin reirte demasiado"""
+
+memoria: dict = {}
+
+
+def chat_ai(mensaje, chat_id):
+    if chat_id not in memoria:
+        memoria[chat_id] = []
+    memoria[chat_id].append({"role": "user", "content": mensaje})
+    history = memoria[chat_id][-20:]
+
+    msgs = [{"role": "system", "content": SYSTEM_PROMPT}] + history
+
     for url, key, model in [
         ("https://api.groq.com/openai/v1/chat/completions", GROQ_KEY, "llama-3.3-70b-versatile"),
         ("https://openrouter.ai/api/v1/chat/completions", OPENROUTER_KEY, "meta-llama/llama-3.1-8b-instant:free"),
@@ -264,14 +305,16 @@ def chat_ai(mensaje):
             r = requests.post(
                 url,
                 headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-                json={"model": model, "messages": msgs, "max_tokens": 300},
+                json={"model": model, "messages": msgs, "max_tokens": 400},
                 timeout=20,
             )
             if r.ok:
-                return r.json()["choices"][0]["message"]["content"].strip()
+                resp = r.json()["choices"][0]["message"]["content"].strip()
+                memoria[chat_id].append({"role": "assistant", "content": resp})
+                return resp
         except Exception as e:
             logger.warning(f"Chat error con {url.split('.')[1]}: {e}")
-    return "ðŸ¤– No puedo pensar ahora, intentalo mas tarde."
+    return "TÃ­o, ahora mismo no puedo pensar, dame un segundÃ­n y vuelve a preguntar."
 
 
 # ---------------------------------------------------------------------------
@@ -335,15 +378,9 @@ async def bucle_snake(app, chat_id):
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "ðŸŽ® *GameBot*\n\n"
-        "Comandos:\n"
-        "`/snake` â€” Jugar al Snake ðŸ\n"
-        "`/ttt` â€” 3 en Raya âŒâ­•\n"
-        "`/chat <texto>` â€” Hablar con IA ðŸ¤–\n"
-        "O simplemente escribe algo y te respondo.",
-        parse_mode="Markdown",
-    )
+    chat_id = update.effective_chat.id
+    resp = chat_ai("Saluda y explica quien eres y que ofreces", chat_id)
+    await update.message.reply_text(resp)
 
 
 async def cmd_snake(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -380,6 +417,11 @@ async def snake_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         guardar_id(chat_id, q.message.message_id)
         t = asyncio.create_task(bucle_snake(context.application, chat_id))
         _tareas[chat_id] = t
+        return
+
+    if data == "snake_gameover_opinion":
+        resp = chat_ai("el usuario me dice como le ha parecido el snake, responde brevemente", chat_id)
+        await q.edit_message_text(resp)
         return
 
     mapa = {"snake_up": (0, -1), "snake_down": (0, 1), "snake_left": (-1, 0), "snake_right": (1, 0)}
@@ -419,6 +461,11 @@ async def ttt_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not juego:
         return
 
+    if data == "ttt_gameover_opinion":
+        resp = chat_ai("el usuario me dice como le ha parecido el 3 en raya, responde brevemente", chat_id)
+        await q.edit_message_text(resp)
+        return
+
     if data == "ttt_reset":
         if chat_id in _tareas:
             _tareas[chat_id].cancel()
@@ -452,21 +499,23 @@ async def ttt_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ---------------------------------------------------------------------------
 
 async def cmd_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
     texto = " ".join(context.args)
     if not texto:
         await update.message.reply_text("Uso: `/chat <tu mensaje>`", parse_mode="Markdown")
         return
     await update.message.reply_text("Pensando...")
-    resp = chat_ai(texto)
+    resp = chat_ai(texto, chat_id)
     await update.message.reply_text(resp)
 
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
     texto = update.message.text.strip()
     if texto.startswith("/"):
         return
     await update.message.reply_text("Pensando...")
-    resp = chat_ai(texto)
+    resp = chat_ai(texto, chat_id)
     await update.message.reply_text(resp)
 
 
